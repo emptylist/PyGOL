@@ -121,10 +121,10 @@ Hierarchy.
 
 class AbstractTopology(object):
     def __init__(self):
-        pass
+        raise NotImplementedError
 
     def find_neighbors(self, cell):
-        pass
+        raise NotImplementedError
 
 """
 Yup, it's an entirely virtual class, serving as nothing more than a template for what
@@ -133,11 +133,18 @@ infection when I write things like this, but I'm at a loss for how to proceed.
 """
 
 class PlaneTopology(AbstractTopology):
-    def __init__(self, height, width):
-        pass
+    def __init__(self, height, width, initial_live_cells):
+        self._cells = [[Cell() for i in xrange(width)] for j in xrange(height)]
+        if initial_live_cells:
+            for (column, row) in initial_live_cells:
+                self._cells[row][column].alive()
 
     def find_neighbors(self, cell):
         pass
+
+    @property
+    def cells(self):
+        return self._cells
 
 def stepper(cells, topology, rule):
     def step_function(steps):
@@ -148,4 +155,19 @@ def stepper(cells, topology, rule):
                 cell.update()
     return step_function
 
-        
+"""
+One notable design choice here in the stepper (and relatedly, in the AbstractTopology class)
+is that the cells and topology are both required to be passed to the stepper function.
+One could easily concieve that the topology and the list of cells would be bundled together,
+and indeed one obvious way to do this (what I might even consider the standard OO approach)
+would be to have the topology act as a data structure for the cells.  This is very reasonable,
+and is even implemented in the PlaneTopology class, which actually makes passing topology.cells
+and topology both to stepper redundant.  However, if we wanted the topology to be able to
+generate neighbor cells is some algorithmic manner (as we might need for an infinite structure),
+then it's not clear that the topology should be responsible for 'knowing' the structure of
+the cells.
+
+I'm open to debate on this, and I'm not sure this isn't an unnecessary (or perhaps just
+ineffective) attempt to decouple logically coupled pieces.  In part, this makes me think
+this is an example of when OO has strong, and different, opinions from an FP approach.
+"""
