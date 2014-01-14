@@ -26,8 +26,8 @@ class Cell(object):
     contained), and involves a bit of boilerplate.
     """
 
-    def __init__(self):
-        self._state = Dead
+    def __init__(self, inital_state = Dead):
+        self._state = initial_state
         self._new_state = None
     """
     Simplest first.  Getters and setters for the status.  While this
@@ -73,7 +73,10 @@ class Cell(object):
     """
 
     def transactional_update(self, rule, neighbors_fn):
-        self._new_state = rule(self, neighbors_fn)
+        if rule(self, neighbors_fn) == "Alive":
+            self._new_state = "Alive"
+        else:
+            self._new_state = "Dead"
 
     @state.set
     def update(self):
@@ -126,6 +129,10 @@ class AbstractTopology(object):
     def find_neighbors(self, cell):
         raise NotImplementedError
 
+    @property
+    def cells(self):
+        return self._cells
+
 """
 Yup, it's an entirely virtual class, serving as nothing more than a template for what
 promises that a real Topology should fulfill.  I wonder if I've got some sort of C++
@@ -133,27 +140,58 @@ infection when I write things like this, but I'm at a loss for how to proceed.
 """
 
 class PlaneTopology(AbstractTopology):
-    def __init__(self, height, width, initial_live_cells):
-        self._cells = [[Cell() for i in xrange(width)] for j in xrange(height)]
+    def __init__(self, height, width, initial_live_cells = None):
+        self._height = height
+        self._width = width
+        self._cells = [Cell() for i in xrange(self._height * self._width)]
         if initial_live_cells:
-            for (column, row) in initial_live_cells:
-                self._cells[row][column].alive()
+            for (row, column) in initial_live_cells:
+                self._cells[row * self._width + column].alive()
 
     def find_neighbors(self, cell):
-        pass
+        neighbors = []
+        flat_index = self._cells.index(cell)
+        row = flat_index % self._width
+        column = flat_index - (row * self._width)
+        for i in [-1, 1]:
+            for j in [-1, 1]:
+                neighbor_row = row + i
+                neighbor_column = column + j
+                if (neighbor_row >= 0) and (neighbor_column >= 0):
+                    neighbors.append(self._cells[neighbor_row * self._width + neighbor_column])
+        return neighbors
 
     @property
     def cells(self):
         return self._cells
 
-def stepper(cells, topology, rule):
+    @property
+    def formatted_cells(self):
+        pass
+
+def stepper(topology, rule):
     def step_function(steps):
         for step in xrange(steps):
-            for cell in cells:
+            for cell in topology.cells:
                 cell.transactional_update(rule, topology.find_neighbors)
             for cell in cells:
                 cell.update()
     return step_function
+
+def conway_rule(cell, neighbor_fn):
+    living_neighbors = len([neighbor.status for neighbor in neighbor_fn(cell)])
+    if cell.status = "Alive":
+        if living_neighbors < 2:
+            return "Dead"
+        elif living_neighbors > 3:
+            return "Dead"
+        else:
+            return "Alive"
+    else: # cell.status = "Dead"
+        if living_neighbors == 3:
+            return "Alive"
+        else:
+            return "Dead"
 
 """
 One notable design choice here in the stepper (and relatedly, in the AbstractTopology class)
